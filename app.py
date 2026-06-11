@@ -1,4 +1,8 @@
 import streamlit as st
+from utils.pdf_reader import extract_text
+from utils.skill_extractor import extract_skills
+from utils.missing_skills import get_missing_skills
+from ai.final_report import generate_final_report
 
 st.set_page_config(
     page_title="AI Resume Analyzer",
@@ -218,7 +222,50 @@ text-align:center;
         st.success("Resume Uploaded Successfully ✅")
 
     if st.button("🚀 Analyze Resume", use_container_width=True):
-        st.success("Analysis Started Successfully")
+
+        if uploaded_file is not None:
+
+            text = extract_text(uploaded_file)
+
+            skills = extract_skills(text)
+            required_skills = skills
+
+            missing_skills = get_missing_skills(
+            skills,
+            required_skills
+            )
+
+            ats_score = 80
+
+            st.success("Analysis Completed ✅")
+
+            st.write("Extracted Skills:")
+            st.write(skills)
+            report = generate_final_report(
+                 skills,
+                 missing_skills,
+                 ats_score,
+                 career
+)
+
+            st.subheader("AI Report")
+
+            st.write("Feedback:")
+            st.write(report["feedback"])
+            st.write("Readiness:")
+            st.write(report["readiness"])
+
+            st.write("Strengths:")
+            st.write(report["strengths"])
+
+            st.write("Weaknesses:")
+            st.write(report["weaknesses"])
+
+            st.write("Recommendations:")
+            st.write(report["recommendations"])
+
+        else:
+            st.error("Please upload a resume first.")
 
 # Results Page
 elif page == "📊 Results":
