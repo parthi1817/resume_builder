@@ -16,15 +16,19 @@ def detect_projects(lines):
 
         if not line:
             continue
+        if line.upper() == "PROJECTS":
+            continue
 
         if "TechStack" in line:
            line = line.split("TechStack")[0]
 
            line = line.strip()
+           if not line:
+               continue
 
         if line.startswith("\uf0b7"):
             continue
-
-        projects.append(line)
+        if line:
+            projects.append(line)
 
     return projects

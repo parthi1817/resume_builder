@@ -3,7 +3,11 @@ from utils.pdf_reader import extract_text
 from utils.skill_extractor import extract_skills
 from utils.missing_skills import get_missing_skills
 from ai.final_report import generate_final_report
-
+from data.career_data import career_db
+from utils.ats_score import calculate_ats
+from utils.project_detector_v2 import detect_projects
+from utils.internship_detector_v2 import detect_internships
+from utils.certificate_detector_v2 import detect_certificates
 st.set_page_config(
     page_title="AI Resume Analyzer",
     layout="wide"
@@ -21,25 +25,27 @@ st.markdown("""
     );
 }
 
-/* Title */
-h1 {
-    color: #1E88E5;
-    text-align: center;
+/* Normal Text */
+.stMarkdown,
+.stText,
+p,
+span,
+label,
+li {
+    color: #111111 !important;
 }
 
-/* Subheaders */
-h2, h3 {
-    color: #1565C0;
+/* Streamlit text visibility */
+[data-testid="stMarkdownContainer"] {
+    color: #111111 !important;
 }
 
-/* Buttons */
-.stButton > button {
-    background-color: #4CAF50;
-    color: white;
-    border-radius: 10px;
-    height: 50px;
-    width: 100%;
-    font-size: 18px;
+[data-testid="stMetricValue"] {
+    color: #111111 !important;
+}
+
+[data-testid="stMetricLabel"] {
+    color: #111111 !important;
 }
 
 /* Sidebar */
@@ -50,17 +56,90 @@ section[data-testid="stSidebar"] {
         #2563EB
     );
 }
-         section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3 {
+
+/* Sidebar text */
+section[data-testid="stSidebar"] * {
     color: white !important;
+}
+
+/* Domain & Career dropdowns */
+.stSelectbox div[data-baseweb="select"] {
+    background-color: white !important;
+    color: black !important;
+}
+
+/* Dropdown selected text */
+.stSelectbox * {
+    color: black !important;
+}
+
+/* File uploader */
+[data-testid="stFileUploader"] {
+    background-color: white !important;
+    color: black !important;
+    border-radius: 10px;
+}
+
+/* Browse Files button */
+[data-testid="stFileUploader"] button {
+    background-color: #2563EB !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* Analyze Resume button */
+.stButton > button {
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border-radius: 10px;
+    height: 50px;
+    width: 100%;
+    font-size: 18px;
+}
+
+/* JSON/List outputs */
+[data-testid="stJson"] {
+    background-color: white !important;
+}
+
+[data-testid="stJson"] * {
+    color: black !important;
+}
+
+/* Success / Info / Warning boxes */
+[data-testid="stAlert"] {
+    color: black !important;
+}
+/* JSON output text */
+[data-testid="stJson"] {
+    background-color: #1E1E1E !important;
+}
+
+[data-testid="stJson"] * {
+    color: #FFD700 !important;   /* Yellow text */
+}
+/* Data/List output */
+pre {
+    color: #FFD700 !important;
+}
+
+code {
+    color: #FFD700 !important;
+}
+
+/* Titles */
+h1 {
+    color: #1E88E5;
+    text-align: center;
+}
+
+/* Headings */
+h2, h3, h4, h5, h6 {
+    color: #1565C0;
 }
 
 </style>
 """, unsafe_allow_html=True)
-
 # Navigation Sidebar
 st.sidebar.title("📌 Navigation")
 st.sidebar.info("AI Resume Analyzer Dashboard")
@@ -152,6 +231,7 @@ elif page == "📤 Upload Resume":
     st.markdown("""
 <div style="
 background:white;
+color:black;
 padding:25px;
 border-radius:20px;
 box-shadow:0px 4px 15px rgba(0,0,0,0.1);
@@ -228,19 +308,55 @@ text-align:center;
             text = extract_text(uploaded_file)
 
             skills = extract_skills(text)
-            required_skills = skills
+            
+            lines = text.split("\n")
+            
+            projects = detect_projects(lines)
+
+            internships = detect_internships(lines)
+
+            certificates = detect_certificates(lines)
+
+            required_skills = career_db.get(
+                career,
+                {}
+            ).get(
+                "skills",
+                []
+            )
 
             missing_skills = get_missing_skills(
             skills,
             required_skills
             )
 
-            ats_score = 80
+            ats_score = calculate_ats(
+                skills,
+                career,
+                projects,
+                internships,
+                certificates
+                
+            )
 
             st.success("Analysis Completed ✅")
+            st.subheader("ATS Score")
+            st.metric("ATS Score", f"{ats_score}%")
 
-            st.write("Extracted Skills:")
-            st.write(skills)
+            st.subheader("Extracted Skills")
+            st.json(skills)
+
+            st.subheader("Missing Skills")
+            st.json(missing_skills)
+
+            st.subheader("Projects")
+            st.json(projects)
+
+            st.subheader("Internships")
+            st.json(internships)
+
+            st.subheader("Certificates")
+            st.json(certificates)
             report = generate_final_report(
                  skills,
                  missing_skills,
@@ -250,19 +366,19 @@ text-align:center;
 
             st.subheader("AI Report")
 
-            st.write("Feedback:")
+            st.subheader("Feedback:")
             st.write(report["feedback"])
-            st.write("Readiness:")
+            st.subheader("Readiness:")
             st.write(report["readiness"])
 
-            st.write("Strengths:")
-            st.write(report["strengths"])
+            st.subheader("Strengths:")
+            st.json(report["strengths"])
 
-            st.write("Weaknesses:")
-            st.write(report["weaknesses"])
+            st.subheader("Weaknesses:")
+            st.json(report["weaknesses"])
 
-            st.write("Recommendations:")
-            st.write(report["recommendations"])
+            st.subheader("Recommendations:")
+            st.json(report["recommendations"])
 
         else:
             st.error("Please upload a resume first.")
@@ -356,13 +472,13 @@ elif page == "ℹ️ About":
     st.subheader("👨‍💻 Team Members")
 
     st.write("""
-    • Pragna - Website UI
+    • Pragna - Website UI 
 
-    • Team Member 2 - Resume Processing
+    • Parthiban S - AI & ATS Analysis Developer
 
-    • Team Member 3 - AI Analysis
+    • Pooja:- Resume processing and data extraction
 
-    • Team Member 4 - Testing & Documentation
+    • Prathviraj - Testing & Documentation
     """)
 
     st.markdown("---")
